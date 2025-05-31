@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BodySync AI - Pose Detection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 25%, #a855f7 50%, #ec4899 100%);
+            min-height: 100vh;
+            color: #333;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(255,255,255,0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            font-weight: 400;
+            opacity: 0.9;
+            letter-spacing: 0.5px;
+        }
+
+        .auth-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 
+                0 20px 40px rgba(0,0,0,0.1),
+                0 0 0 1px rgba(255,255,255,0.05) inset;
+            margin: 0 auto 30px;
+            max-width: 450px;
+            transform: translateY(0);
+            transition: all 0.3s ease;
+        }
+
+        .auth-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 
+                0 30px 60px rgba(0,0,0,0.15),
+                0 0 0 1px rgba(255,255,255,0.1) inset;
+        }
+
+        .main-app {
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 
+                0 20px 40px rgba(0,0,0,0.1),
+                0 0 0 1px rgba(255,255,255,0.05) inset;
+        }
+
+        .auth-form h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2rem;
+            font-weight: 600;
+            color: #1e293b;
+            position: relative;
+        }
+
+        .auth-form h2::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 2px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #374151;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 400;
+            background: white;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .form-group input:valid {
+            border-color: #10b981;
+        }
+
+        .form-group .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1) !important;
+        }
+
+        .error-message {
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 6px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            padding: 16px 32px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+            margin-bottom: 12px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.6s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);
+            box-shadow: 0 4px 16px rgba(107, 114, 128, 0.4);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 8px 25px rgba(107, 114, 128, 0.6);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+            box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.6);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.6);
+        }
+
+        .video-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .video-section {
+            text-align: center;
+            min-width: 320px;
+        }
+
+        .video-section h3 {
+            margin-bottom: 16px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1e293b;
+            text-align: center;
+        }
+
+        video, canvas {
+            width: 100%;
+            max-width: 450px;
+            border-radius: 16px;
+            box-shadow: 
+                0 20px 40px rgba(0,0,0,0.15),
+                0 0 0 1px rgba(255,255,255,0.1) inset;
+            transition: transform 0.3s ease;
+            display: block;
+            margin: 0 auto;
+        }
+
+        video:hover, canvas:hover {
+            transform: scale(1.02);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 30px 0;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-panel {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        .status-panel h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .status-card {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+        }
+
+        .status-card h3 {
+            color: #6366f1;
+            margin-bottom: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-card .value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1;
+        }
+
+        .error {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            color: #b91c1c;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+            border-left: 4px solid #ef4444;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+        }
+
+        .success {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            color: #166534;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+            border-left: 4px solid #10b981;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+        }
+
+        .auth-toggle {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .auth-toggle a {
+            color: #6366f1;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .auth-toggle a:hover {
+            color: #4f46e5;
+            text-decoration: underline;
+        }
+
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .user-info span {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .mode-selector {
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .mode-selector h3 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
+
+        .mode-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .mode-btn {
+            padding: 14px 28px;
+            border: 2px solid #6366f1;
+            background: white;
+            color: #6366f1;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ffffff40;
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2.2rem;
+            }
+            
+            .auth-section {
+                padding: 30px 25px;
+                margin: 0 15px 20px;
+            }
+            
+            .video-container {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .controls {
+                justify-content: center;
+                gap: 10px;
+            }
+            
+            .mode-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .mode-btn {
+                width: 200px;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Add this new CSS for top notifications */
+.notification-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: 90%;
+    max-width: 500px;
+    pointer-events: none; /* Allow clicks through the container */
+}
+
+.notification {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 16px 24px;
+    margin-bottom: 12px;
+    box-shadow: 
+        0 20px 40px rgba(0,0,0,0.15),
+        0 0 0 1px rgba(255,255,255,0.1) inset;
+    font-weight: 500;
+    font-size: 14px;
+    text-align: center;
+    transform: translateY(-100px);
+    opacity: 0;
+    animation: slideInDown 0.4s ease-out forwards;
+    pointer-events: auto; /* Allow clicks on individual notifications */
+    position: relative;
+    overflow: hidden;
+}
+
+.notification::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.notification.success {
+    color: #166534;
+    border-left: 4px solid #10b981;
+}
+
+.notification.success::before {
+    background: linear-gradient(135deg, #10b981, #34d399);
+}
+
+.notification.error {
+    color: #b91c1c;
+    border-left: 4px solid #ef4444;
+}
+
+.notification.error::before {
+    background: linear-gradient(135deg, #ef4444, #f87171);
+}
+
+.notification.info {
+    color: #1e40af;
+    border-left: 4px solid #3b82f6;
+}
+
+.notification.info::before {
+    background: linear-gradient(135deg, #3b82f6, #60a5fa);
+}
+
+/* Animation for sliding in from top */
+@keyframes slideInDown {
+    0% {
+        transform: translateY(-100px);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Animation for sliding out */
+@keyframes slideOutUp {
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+        max-height: 100px;
+        margin-bottom: 12px;
+        padding: 16px 24px;
+    }
+    100% {
+        transform: translateY(-100px);
+        opacity: 0;
+        max-height: 0;
+        margin-bottom: 0;
+        padding: 0 24px;
+    }
+}
+
+.notification.removing {
+    animation: slideOutUp 0.4s ease-in forwards;
+}
+
+/* Close button for notifications */
+.notification-close {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.notification-close:hover {
+    opacity: 1;
+    background: rgba(0,0,0,0.1);
+}
+
+/* Mobile responsiveness for notifications */
+@media (max-width: 768px) {
+    .notification-container {
+        width: 95%;
+        top: 15px;
+    }
+    
+    .notification {
+        padding: 14px 20px;
+        font-size: 13px;
+    }
+}
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .auth-section {
+                padding: 25px 20px;
+            }
+            
+            .btn {
+                width: 100%;
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>BodySync AI</h1>
+            <p>Intelligent Motion & Posture Tracking</p>
+        </div>
+
+        <!-- Add this notification container at the top -->
+        <div id="notificationContainer" class="notification-container"></div>
+
+        <!-- Authentication Section -->
+        <div id="authSection" class="auth-section">
+            <div id="loginForm" class="auth-form">
+                <h2>Welcome Back</h2>
+                <form id="loginFormElement" novalidate>
+                    <div class="form-group">
+                        <label for="loginUsername">Username:</label>
+                        <input type="text" id="loginUsername" required minlength="3">
+                        <div class="error-message" id="loginUsernameError">Username must be at least 3 characters long</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password:</label>
+                        <input type="password" id="loginPassword" required minlength="6">
+                        <div class="error-message" id="loginPasswordError">Password must be at least 6 characters long</div>
+                    </div>
+                    <button type="submit" class="btn">
+                        <span class="loading-spinner" id="loginSpinner"></span>
+                        Login
+                    </button>
+                </form>
+                <div class="auth-toggle">
+                    <a href="#" onclick="toggleAuthForm()">Don't have an account? Register</a>
+                </div>
+            </div>
+
+            <div id="registerForm" class="auth-form" style="display: none;">
+                <h2>Create Account</h2>
+                <form id="registerFormElement" novalidate>
+                    <div class="form-group">
+                        <label for="registerUsername">Username:</label>
+                        <input type="text" id="registerUsername" required minlength="3" pattern="[a-zA-Z0-9_]+" title="Username can only contain letters, numbers, and underscores">
+                        <div class="error-message" id="registerUsernameError">Username must be at least 3 characters (letters, numbers, underscores only)</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">Email:</label>
+                        <input type="email" id="registerEmail" required>
+                        <div class="error-message" id="registerEmailError">Please enter a valid email address</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Password:</label>
+                        <input type="password" id="registerPassword" required minlength="6" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}" title="Password must contain at least one uppercase letter, one lowercase letter, and one number">
+                        <div class="error-message" id="registerPasswordError">Password must be at least 6 characters with uppercase, lowercase, and number</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password:</label>
+                        <input type="password" id="confirmPassword" required>
+                        <div class="error-message" id="confirmPasswordError">Passwords do not match</div>
+                    </div>
+                    <button type="submit" class="btn">
+                        <span class="loading-spinner" id="registerSpinner"></span>
+                        Register
+                    </button>
+                </form>
+                <div class="auth-toggle">
+                    <a href="#" onclick="toggleAuthForm()">Already have an account? Login</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Application -->
+        <div id="mainApp" class="main-app">
+            <div class="user-info">
+                <div>
+                    <span>Welcome back, <strong id="username"></strong>! 👋</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()">Logout</button>
+            </div>
+
+            <!-- Mode Selection -->
+            <div class="mode-selector">
+                <h3>Select Training Mode</h3>
+                <div class="mode-buttons">
+                    <button class="mode-btn active" onclick="setMode('yoga')" id="yogaBtn">🧘‍♀️ Yoga Mode</button>
+                    <button class="mode-btn" onclick="setMode('gym')" id="gymBtn">🏋️‍♂️ Gym Mode</button>
+                </div>
+            </div>
+
+            <!-- Video Section -->
+            <div class="video-container">
+                <div class="video-section">
+                    <h3>📹 Live Camera Feed</h3>
+                    <video id="video" autoplay playsinline muted></video>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <button class="btn" onclick="startCamera()" id="startBtn">🎥 Start Camera</button>
+                <button class="btn btn-danger" onclick="stopCamera()" id="stopBtn" disabled>⏹️ Stop Camera</button>
+                <button class="btn btn-success" onclick="startDetection()" id="detectBtn" disabled>🚀 Start Detection</button>
+                <button class="btn btn-secondary" onclick="stopDetection()" id="stopDetectBtn" disabled>⏸️ Stop Detection</button>
+                
+                <select id="exerciseSelect" style="display: none;">
+                    <option value="bicep_curls">💪 Bicep Curls</option>
+                    <option value="squats">🦵 Squats</option>
+                    <option value="push_ups">👐 Push Ups</option>
+                    <option value="shoulder_press">🏋️ Shoulder Press</option>
+                    <option value="lateral_raises">🤸 Lateral Raises</option>
+                    <option value="lunges">🏃 Lunges</option>
+                    <option value="pull_ups">💪 Pull Ups</option>
+                    <option value="overhead_press">🏋️ Overhead Press</option>
+                </select>
+                
+                <button class="btn btn-danger" onclick="resetCounters()" id="resetBtn" style="display: none;">🔄 Reset Counters</button>
+            </div>
+
+            <!-- Status Panel -->
+            <div class="status-panel">
+                <h3>📊 Real-time Status</h3>
+                <div id="statusInfo">
+                    <p><strong>Mode:</strong> <span id="currentMode">yoga</span></p>
+                    <p id="currentExercise" style="display: none;"><strong>Exercise:</strong> <span id="exerciseName">bicep_curls</span></p>
+                </div>
+                
+                <div class="status-grid" id="statusGrid">
+                    <!-- Status cards will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUser = null;
+        let authToken = null;
+        let video = null;
+        let canvas = null;
+        let ctx = null;
+        let isDetecting = false;
+        let detectionInterval = null;
+        let currentMode = 'yoga';
+
+        // API base URL - change this to your backend URL
+        const API_BASE = 'http://localhost:5000/api';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            video = document.getElementById('video');
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            
+            // Check for stored token (using variables instead of localStorage)
+            // Note: In a real application, you'd use localStorage, but it's disabled in this environment
+            
+            setupFormValidation();
+            setupFormSubmission();
+
+            // Exercise selector change
+            document.getElementById('exerciseSelect').addEventListener('change', function() {
+                setExercise(this.value);
+            });
+        });
+
+        // Form validation setup
+        function setupFormValidation() {
+            // Login form validation
+            const loginUsername = document.getElementById('loginUsername');
+            const loginPassword = document.getElementById('loginPassword');
+            
+            loginUsername.addEventListener('input', () => validateField(loginUsername, 'loginUsernameError'));
+            loginPassword.addEventListener('input', () => validateField(loginPassword, 'loginPasswordError'));
+            
+            // Register form validation
+            const registerUsername = document.getElementById('registerUsername');
+            const registerEmail = document.getElementById('registerEmail');
+            const registerPassword = document.getElementById('registerPassword');
+            const confirmPassword = document.getElementById('confirmPassword');
+            
+            registerUsername.addEventListener('input', () => validateField(registerUsername, 'registerUsernameError'));
+            registerEmail.addEventListener('input', () => validateField(registerEmail, 'registerEmailError'));
+            registerPassword.addEventListener('input', () => {
+                validateField(registerPassword, 'registerPasswordError');
+                if (confirmPassword.value) {
+                    validatePasswordMatch();
+                }
+            });
+            confirmPassword.addEventListener('input', validatePasswordMatch);
+        }
+
+        function setupFormSubmission() {
+            document.getElementById('loginFormElement').addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (validateLoginForm()) {
+                    login();
+                }
+            });
+
+            document.getElementById('registerFormElement').addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (validateRegisterForm()) {
+                    register();
+                }
+            });
+        }
+
+        function validateField(input, errorId) {
+            const errorElement = document.getElementById(errorId);
+            const isValid = input.checkValidity();
+            
+            if (isValid) {
+                input.classList.remove('input-error');
+                errorElement.style.display = 'none';
+            } else {
+                input.classList.add('input-error');
+                errorElement.style.display = 'block';
+            }
+            
+            return isValid;
+        }
+
+        function validatePasswordMatch() {
+            const password = document.getElementById('registerPassword');
+            const confirmPassword = document.getElementById('confirmPassword');
+            const errorElement = document.getElementById('confirmPasswordError');
+            
+            const isMatch = password.value === confirmPassword.value;
+            
+            if (isMatch) {
+                confirmPassword.classList.remove('input-error');
+                errorElement.style.display = 'none';
+            } else {
+                confirmPassword.classList.add('input-error');
+                errorElement.style.display = 'block';
+            }
+            
+            return isMatch;
+        }
+
+        function validateLoginForm() {
+            const username = document.getElementById('loginUsername');
+            const password = document.getElementById('loginPassword');
+            
+            const usernameValid = validateField(username, 'loginUsernameError');
+            const passwordValid = validateField(password, 'loginPasswordError');
+            
+            return usernameValid && passwordValid;
+        }
+
+        function validateRegisterForm() {
+            const username = document.getElementById('registerUsername');
+            const email = document.getElementById('registerEmail');
+            const password = document.getElementById('registerPassword');
+            
+            const usernameValid = validateField(username, 'registerUsernameError');
+            const emailValid = validateField(email, 'registerEmailError');
+            const passwordValid = validateField(password, 'registerPasswordError');
+            const passwordMatch = validatePasswordMatch();
+            
+            return usernameValid && emailValid && passwordValid && passwordMatch;
+        }
+
+        // Authentication functions
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const spinner = document.getElementById('loginSpinner');
+
+            spinner.style.display = 'inline-block';
+
+            try {
+                const response = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    showMainApp();
+                    showMessage('🎉 Login successful! Welcome back!', 'success');
+                } else {
+                    showMessage('❌ ' + (data.error || 'Login failed'), 'error');
+                }
+            } catch (error) {
+                showMessage('🔄 Network error. Please check your connection and try again.', 'error');
+            } finally {
+                spinner.style.display = 'none';
+            }
+        }
+
+        async function register() {
+            const username = document.getElementById('registerUsername').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const spinner = document.getElementById('registerSpinner');
+
+            spinner.style.display = 'inline-block';
+
+            try {
+                const response = await fetch(`${API_BASE}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    showMainApp();
+                    showMessage('🎉 Registration successful! Welcome to BodySync AI!', 'success');
+                } else {
+                    showMessage('❌ ' + (data.error || 'Registration failed'), 'error');
+                }
+            } catch (error) {
+                showMessage('🔄 Network error. Please check your connection and try again.', 'error');
+            } finally {
+                spinner.style.display = 'none';
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            stopCamera();
+            showAuthSection();
+            showMessage('👋 Logged out successfully. See you soon!', 'success');
+        }
+
+        function toggleAuthForm() {
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            
+            if (loginForm.style.display === 'none') {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+                // Clear register form
+                document.getElementById('registerFormElement').reset();
+                clearValidationErrors('register');
+            } else {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+                // Clear login form
+                document.getElementById('loginFormElement').reset();
+                clearValidationErrors('login');
+            }
+        }
+
+        function clearValidationErrors(formType) {
+            const errors = document.querySelectorAll(`#${formType}Form .error-message`);
+            const inputs = document.querySelectorAll(`#${formType}Form input`);
+            
+            errors.forEach(error => error.style.display = 'none');
+            inputs.forEach(input => input.classList.remove('input-error'));
+        }
+
+        function showMainApp() {
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            document.getElementById('username').textContent = currentUser.username;
+            updateUI();
+        }
+
+        function showAuthSection() {
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('mainApp').style.display = 'none';
+        }
+
+        // Camera functions
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 } 
+                });
+                video.srcObject = stream;
+                
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                };
+
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('detectBtn').disabled = false;
+                
+                showMessage('📹 Camera started successfully! Ready for detection.', 'success');
+            } catch (error) {
+                showMessage('❌ Error accessing camera: ' + error.message, 'error');
+            }
+        }
+
+        function stopCamera() {
+            if (video.srcObject) {
+                const tracks = video.srcObject.getTracks();
+                tracks.forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            
+            stopDetection();
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('detectBtn').disabled = true;
+            
+            showMessage('📹 Camera stopped.', 'success');
+        }
+
+        // Detection functions
+        async function startDetection() {
+            if (!authToken) {
+                showMessage('🔐 Please login first to start detection.', 'error');
+                return;
+            }
+
+            isDetecting = true;
+            document.getElementById('detectBtn').disabled = true;
+            document.getElementById('stopDetectBtn').disabled = false;
+            
+            detectionInterval = setInterval(processFrame, 1000); // Process every second
+            showMessage('🚀 Detection started! AI is now analyzing your movements.', 'success');
+        }
+
+        function stopDetection() {
+            isDetecting = false;
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            
+            document.getElementById('detectBtn').disabled = false;
+            document.getElementById('stopDetectBtn').disabled = true;
+            showMessage('⏸️ Detection stopped.', 'success');
+        }
+
+        async function processFrame() {
+            if (!isDetecting || !video.videoWidth) return;
+
+            // Draw video frame to canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert canvas to base64
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+            try {
+                const response = await fetch(`${API_BASE}/process_frame`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus(data);
+                } else {
+                    console.error('Detection error:', data.error);
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+            }
+        }
+
+        // Mode and exercise functions
+        async function setMode(mode) {
+            try {
+
+                if (isDetecting) {
+                    stopDetection();
+                    showMessage('⏸️ Detection stopped due to mode change.', 'info');
+                }
+
+                const response = await fetch(`${API_BASE}/set_mode`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ mode })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentMode = mode;
+                    updateUI();
+                    document.getElementById('statusGrid').innerHTML = '';
+                    const modeEmoji = mode === 'yoga' ? '🧘‍♀️' : '🏋️‍♂️';
+                    showMessage(`${modeEmoji} Switched to ${mode} mode successfully!`, 'success');
+                }
+            } catch (error) {
+                showMessage('❌ Error setting mode. Please try again.', 'error');
+            }
+        }
+
+        async function setExercise(exercise) {
+            try {
+                const response = await fetch(`${API_BASE}/set_exercise`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ exercise })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('exerciseName').textContent = exercise;
+                    showMessage(`💪 Exercise set to ${exercise.replace('_', ' ')}`, 'success');
+                }
+            } catch (error) {
+                showMessage('❌ Error setting exercise. Please try again.', 'error');
+            }
+        }
+
+        async function resetCounters() {
+            try {
+                const response = await fetch(`${API_BASE}/reset_counter`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ exercise: 'all' })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('🔄 All counters reset successfully!', 'success');
+                }
+            } catch (error) {
+                showMessage('❌ Error resetting counters. Please try again.', 'error');
+            }
+        }
+
+
+        // UI functions
+        function updateUI() {
+            const isGymMode = currentMode === 'gym';
+            
+            document.getElementById('currentMode').textContent = currentMode;
+            document.getElementById('exerciseSelect').style.display = isGymMode ? 'inline-block' : 'none';
+            document.getElementById('resetBtn').style.display = isGymMode ? 'inline-block' : 'none';
+            document.getElementById('currentExercise').style.display = isGymMode ? 'block' : 'none';
+            
+            // Update mode buttons
+            document.getElementById('yogaBtn').classList.toggle('active', currentMode === 'yoga');
+            document.getElementById('gymBtn').classList.toggle('active', currentMode === 'gym');
+        }
+
+        function updateStatus(data) {
+            const statusGrid = document.getElementById('statusGrid');
+            
+            if (data.mode === 'yoga') {
+                statusGrid.innerHTML = `
+                    <div class="status-card">
+                        <h3>Detected Pose</h3>
+                        <div class="value">${data.pose_class || 'None'}</div>
+                    </div>
+                    <div class="status-card">
+                        <h3>Confidence</h3>
+                        <div class="value">${data.confidence ? (data.confidence * 100).toFixed(1) + '%' : '0%'}</div>
+                    </div>
+                    <div class="status-card">
+                        <h3>Landmarks</h3>
+                        <div class="value">${data.landmarks ? '✅' : '❌'}</div>
+                    </div>
+                `;
+            } else {
+                statusGrid.innerHTML = `
+                    <div class="status-card">
+                        <h3>Current Exercise</h3>
+                        <div class="value">${data.exercise?.replace('_', ' ') || 'None'}</div>
+                    </div>
+                    <div class="status-card">
+                        <h3>Count</h3>
+                        <div class="value">${data.count || 0}</div>
+                    </div>
+                    <div class="status-card">
+                        <h3>Stage</h3>
+                        <div class="value">${data.stage || 'None'}</div>
+                    </div>
+                    <div class="status-card">
+                        <h3>Total Reps</h3>
+                        <div class="value">${data.total_reps || 0}</div>
+                    </div>
+                    <div class="status-card">
+                        <h3>Angle</h3>
+                        <div class="value">${data.angle ? data.angle.toFixed(1) + '°' : 'N/A'}</div>
+                    </div>
+                    <div class="status-card">
+                        <h3>Landmarks</h3>
+                        <div class="value">${data.landmarks ? '✅' : '❌'}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function showMessage(message, type = 'info') {
+    const container = document.getElementById('notificationContainer');
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        ${message}
+        <button class="notification-close" onclick="removeNotification(this)" aria-label="Close">&times;</button>
+    `;
+    
+    // Add to container at the top
+    container.insertBefore(notification, container.firstChild);
+    
+    // Auto-remove after 4 seconds
+    const timeoutId = setTimeout(() => {
+        removeNotification(notification.querySelector('.notification-close'));
+    }, 4000);
+    
+    // Store timeout ID for potential manual removal
+    notification.dataset.timeoutId = timeoutId;
+    
+    // Limit to maximum 5 notifications
+    const notifications = container.querySelectorAll('.notification');
+    if (notifications.length > 5) {
+        removeNotification(notifications[notifications.length - 1].querySelector('.notification-close'));
+    }
+}
+
+function removeNotification(closeButton) {
+    const notification = closeButton.parentElement;
+    const timeoutId = notification.dataset.timeoutId;
+    
+    // Clear the auto-remove timeout
+    if (timeoutId) {
+        clearTimeout(parseInt(timeoutId));
+    }
+    
+    // Add removing class for exit animation
+    notification.classList.add('removing');
+    
+    // Remove element after animation completes
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 400); // Match the animation duration
+}
+
+    </script>
+</body>
+</html>
